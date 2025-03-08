@@ -1,0 +1,192 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-music-dark text-music-text antialiased;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+}
+
+/* Custom classes */
+@layer components {
+  .glass-panel {
+    @apply backdrop-blur-lg bg-white/5 border border-white/10 shadow-lg;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  
+  .glass-panel:hover {
+    @apply bg-white/10 shadow-xl;
+  }
+  
+  .button-transition {
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  
+  .song-card {
+    @apply bg-music-card rounded-xl overflow-hidden hover:shadow-2xl p-0 m-0 relative;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  
+  .song-card:hover {
+    @apply bg-music-cardHover;
+    transform: translateY(-4px);
+  }
+  
+  .song-image-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 100%; /* 1:1 aspect ratio */
+    overflow: hidden;
+  }
+  
+  .song-image {
+    @apply absolute top-0 left-0 w-full h-full object-cover;
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  
+  .song-card:hover .song-image {
+    transform: scale(1.05);
+  }
+  
+  .floating-button {
+    @apply fixed bottom-8 right-8 bg-music-accent text-white rounded-full p-4 shadow-lg hover:bg-music-accentHover button-transition;
+    transform-origin: center;
+  }
+  
+  .floating-button:hover {
+    transform: scale(1.05);
+  }
+  
+  .floating-button:active {
+    transform: scale(0.95);
+  }
+  
+  .premium-button {
+    @apply bg-music-accent text-white py-3 px-6 rounded-full font-medium hover:bg-music-accentHover button-transition shadow-md;
+  }
+  
+  .premium-button:hover {
+    @apply shadow-xl;
+    transform: translateY(-2px);
+  }
+  
+  .premium-button:active {
+    transform: scale(0.98);
+  }
+  
+  .premium-button-outline {
+    @apply border border-white/20 bg-white/5 text-white py-3 px-6 rounded-full font-medium hover:bg-white/10 button-transition;
+  }
+  
+  .premium-button-outline:hover {
+    @apply shadow-lg;
+    transform: translateY(-2px);
+  }
+  
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+  
+  .modal-overlay.visible {
+    opacity: 1;
+  }
+  
+  .modal-content {
+    @apply bg-music-card rounded-2xl shadow-xl overflow-hidden max-w-md w-full mx-4;
+    transform: scale(0.95);
+    opacity: 0;
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .modal-content.visible {
+    transform: scale(1);
+    opacity: 1;
+  }
+  
+  .fancy-input {
+    @apply w-full px-4 py-3 bg-black/40 border border-white/10 rounded-lg text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-music-accent/70;
+    transition: all 0.2s ease;
+  }
+  
+  /* Loading animations */
+  .loading-skeleton {
+    @apply bg-white/10 animate-pulse rounded;
+  }
+}
