@@ -1,6 +1,6 @@
 # Welcome to your rd-02 project
 
-## MelodyShare
+## [MelodyShare](https://rajveer-07.github.io/Melody-Share/)
 
 * Melody Share is a community-based music-sharing platform that allows users to share songs and discover new music. It integrates with Spotify to provide seamless playback of shared tracks.
 
