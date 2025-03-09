@@ -10,6 +10,7 @@ interface SongCardProps {
   addedBy: string;
   spotifyUri: string;
   mood?: string;
+  onClick?: () => void; // Add the onClick prop
 }
 
 const SongCard: React.FC<SongCardProps> = ({
@@ -20,6 +21,7 @@ const SongCard: React.FC<SongCardProps> = ({
   addedBy,
   spotifyUri,
   mood,
+  onClick,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -27,8 +29,10 @@ const SongCard: React.FC<SongCardProps> = ({
   // Extract the track ID from the Spotify URI
   const trackId = spotifyUri.split(':').pop();
 
-  const openSpotifyTrack = () => {
-    if (trackId) {
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else if (trackId) {
       window.open(`https://open.spotify.com/track/${trackId}`, '_blank');
     }
   };
@@ -55,7 +59,7 @@ const SongCard: React.FC<SongCardProps> = ({
           }`}
         >
           <button
-            onClick={openSpotifyTrack}
+            onClick={handleClick}
             className="w-16 h-16 bg-music-accent rounded-full flex items-center justify-center transform transition-transform duration-200 hover:scale-105 active:scale-95"
             title="Play on Spotify"
           >
