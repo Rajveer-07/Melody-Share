@@ -21,7 +21,8 @@ export type Song = {
   albumArt: string;
   addedBy: string;
   timestamp: Date;
-  mood?: string; // New field for mood
+  mood?: string; // Field for mood
+  youtubeUrl?: string; // Added youtubeUrl property
 };
 
 interface MusicCommunityContextType {
@@ -30,9 +31,10 @@ interface MusicCommunityContextType {
   currentUser: User | null;
   songs: Song[];
   isLoading: boolean;
+  error: Error | null; // Add error property to the context type
   createCommunity: (name: string) => Promise<void>;
   joinCommunity: (communityId: string, username: string) => Promise<void>;
-  addSong: (spotifyUri: string, title: string, artist: string, albumArt: string, mood?: string) => Promise<void>;
+  addSong: (spotifyUri: string, title: string, artist: string, albumArt: string, mood?: string, youtubeUrl?: string) => Promise<void>;
   canAddSong: boolean;
   setCurrentCommunity: (community: Community | null) => void;
   setCurrentUser: (user: User | null) => void;
@@ -105,6 +107,7 @@ export const MusicCommunityProvider: React.FC<{ children: ReactNode }> = ({ chil
   const [songs, setSongs] = useState<Song[]>(mockSongs);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [canAddSong, setCanAddSong] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null); // Add error state
 
   // Check if user can add a song (1 per 24h)
   useEffect(() => {
@@ -129,6 +132,7 @@ export const MusicCommunityProvider: React.FC<{ children: ReactNode }> = ({ chil
   // Create a new community
   const createCommunity = async (name: string) => {
     setIsLoading(true);
+    setError(null); // Reset error state
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -141,8 +145,9 @@ export const MusicCommunityProvider: React.FC<{ children: ReactNode }> = ({ chil
       
       setCommunities([...communities, newCommunity]);
       setCurrentCommunity(newCommunity);
-    } catch (error) {
-      console.error('Error creating community:', error);
+    } catch (err) {
+      console.error('Error creating community:', err);
+      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
     } finally {
       setIsLoading(false);
     }
@@ -151,6 +156,7 @@ export const MusicCommunityProvider: React.FC<{ children: ReactNode }> = ({ chil
   // Join an existing community
   const joinCommunity = async (communityId: string, username: string) => {
     setIsLoading(true);
+    setError(null); // Reset error state
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -166,18 +172,20 @@ export const MusicCommunityProvider: React.FC<{ children: ReactNode }> = ({ chil
       
       setCurrentUser(newUser);
       setCurrentCommunity(community);
-    } catch (error) {
-      console.error('Error joining community:', error);
+    } catch (err) {
+      console.error('Error joining community:', err);
+      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
     } finally {
       setIsLoading(false);
     }
   };
 
   // Add a new song
-  const addSong = async (spotifyUri: string, title: string, artist: string, albumArt: string, mood?: string) => {
+  const addSong = async (spotifyUri: string, title: string, artist: string, albumArt: string, mood?: string, youtubeUrl?: string) => {
     if (!currentUser || !canAddSong) return;
     
     setIsLoading(true);
+    setError(null); // Reset error state
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -191,12 +199,14 @@ export const MusicCommunityProvider: React.FC<{ children: ReactNode }> = ({ chil
         addedBy: currentUser.username,
         timestamp: new Date(),
         mood,
+        youtubeUrl,
       };
       
       setSongs([newSong, ...songs]);
       setCanAddSong(false);
-    } catch (error) {
-      console.error('Error adding song:', error);
+    } catch (err) {
+      console.error('Error adding song:', err);
+      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
     } finally {
       setIsLoading(false);
     }
@@ -210,6 +220,7 @@ export const MusicCommunityProvider: React.FC<{ children: ReactNode }> = ({ chil
         currentUser,
         songs,
         isLoading,
+        error, // Add error to the provider
         createCommunity,
         joinCommunity,
         addSong,
