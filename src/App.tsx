@@ -1,8 +1,9 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { MusicCommunityProvider } from "./context/MusicCommunityContext";
 import Onboarding from "./pages/Onboarding";
 import Feed from "./pages/Feed";
@@ -26,6 +27,7 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Onboarding />} />
         <Route path="/feed" element={<Feed />} />
+        <Route path="/join/:code" element={<Onboarding />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
@@ -34,15 +36,15 @@ const AnimatedRoutes = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <MusicCommunityProvider>
+    <MusicCommunityProvider>
+      <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter basename="/Melody-Share">
+        <BrowserRouter>
           <AnimatedRoutes />
         </BrowserRouter>
-      </MusicCommunityProvider>
-    </TooltipProvider>
+      </TooltipProvider>
+    </MusicCommunityProvider>
   </QueryClientProvider>
 );
 
