@@ -19,6 +19,9 @@ export default {
 			}
 		},
 		extend: {
+			screens: {
+				'xs': '480px',
+			},
 			fontFamily: {
 				sans: ['Helvetica Neue', 'sans-serif'],
 				display: ['SF Pro Display', 'Helvetica Neue', 'sans-serif']
