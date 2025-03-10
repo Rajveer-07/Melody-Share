@@ -7,9 +7,10 @@ import debounce from 'lodash.debounce';
 
 interface CreateCommunityFormProps {
   onComplete: () => void;
+  onBack?: () => void;
 }
 
-const CreateCommunityForm: React.FC<CreateCommunityFormProps> = ({ onComplete }) => {
+const CreateCommunityForm: React.FC<CreateCommunityFormProps> = ({ onComplete, onBack }) => {
   const { createCommunity, isLoading } = useMusicCommunity();
   const [communityName, setCommunityName] = useState('');
   const [username, setUsername] = useState('');
@@ -62,8 +63,8 @@ const CreateCommunityForm: React.FC<CreateCommunityFormProps> = ({ onComplete })
     if (!validate()) return;
 
     try {
-      // Pass only community name, not username
-      await createCommunity(communityName);
+      // Pass both community name and username
+      await createCommunity(communityName, username);
       toast({
         title: "Community created",
         description: `Your community "${communityName}" has been created.`,
@@ -88,7 +89,7 @@ const CreateCommunityForm: React.FC<CreateCommunityFormProps> = ({ onComplete })
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="communityName" className="block text-sm font-medium text-music-textSecondary mb-1">
-              Community Name
+              Community Code
             </label>
             <input
               id="communityName"
@@ -144,6 +145,16 @@ const CreateCommunityForm: React.FC<CreateCommunityFormProps> = ({ onComplete })
               <>Create Community</>
             )}
           </button>
+          
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="premium-button-outline w-full mt-2"
+            >
+              Back
+            </button>
+          )}
         </form>
       </div>
     </div>
