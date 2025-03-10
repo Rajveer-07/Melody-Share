@@ -97,6 +97,18 @@
     transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   }
   
+  .micro-card {
+    @apply bg-black/30 backdrop-blur-md rounded-lg p-3 border border-white/5 hover:border-white/10 transition-all;
+  }
+  
+  .micro-card:hover {
+    @apply shadow-lg bg-white/5 -translate-y-1;
+  }
+  
+  .micro-card-icon {
+    @apply bg-white/5 rounded-full p-2 mb-2;
+  }
+  
   .song-card {
     @apply bg-music-card rounded-xl overflow-hidden hover:shadow-2xl p-0 m-0 relative;
     transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
@@ -124,8 +136,9 @@
   }
   
   .floating-button {
-    @apply fixed bottom-8 right-8 bg-music-accent text-white rounded-full p-4 shadow-lg hover:bg-music-accentHover button-transition;
+    @apply fixed bottom-4 sm:bottom-8 right-4 sm:right-8 bg-music-accent text-white rounded-full p-3 sm:p-4 shadow-lg hover:bg-music-accentHover button-transition;
     transform-origin: center;
+    z-index: 50;
   }
   
   .floating-button:hover {
@@ -137,7 +150,7 @@
   }
   
   .premium-button {
-    @apply bg-music-accent text-white py-3 px-6 rounded-full font-medium hover:bg-music-accentHover button-transition shadow-md;
+    @apply bg-music-accent text-white py-2 px-4 sm:py-3 sm:px-6 rounded-full font-medium hover:bg-music-accentHover button-transition shadow-md;
   }
   
   .premium-button:hover {
@@ -150,7 +163,7 @@
   }
   
   .premium-button-outline {
-    @apply border border-white/20 bg-white/5 text-white py-3 px-6 rounded-full font-medium hover:bg-white/10 button-transition;
+    @apply border border-white/20 bg-white/5 text-white py-2 px-4 sm:py-3 sm:px-6 rounded-full font-medium hover:bg-white/10 button-transition;
   }
   
   .premium-button-outline:hover {
@@ -188,5 +201,29 @@
   /* Loading animations */
   .loading-skeleton {
     @apply bg-white/10 animate-pulse rounded;
+  }
+  
+  /* Mobile optimizations */
+  @media (max-width: 640px) {
+    .song-details {
+      @apply truncate;
+    }
+    
+    .song-actions {
+      @apply flex-shrink-0;
+    }
+  }
+}
+
+/* Add this special breakpoint for extra small devices */
+@layer utilities {
+  @variants responsive {
+    .xs\:inline {
+      display: inline;
+    }
+    
+    .xs\:hidden {
+      display: none;
+    }
   }
 }
