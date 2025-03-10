@@ -1,214 +1,346 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
-// Types definition
-export type Community = {
+export interface Community {
   id: string;
   name: string;
   creationDate: Date;
-};
+  members: number;
+  code: string;
+}
 
-export type User = {
+export interface User {
   id: string;
   username: string;
-  communityId: string | null;
-};
+  lastSongAdded?: Date;
+}
 
-export type Song = {
+export interface Song {
   id: string;
-  spotifyUri: string;
   title: string;
   artist: string;
   albumArt: string;
+  spotifyUri: string;
   addedBy: string;
-  timestamp: Date;
-  mood?: string; // Field for mood
-  youtubeUrl?: string; // Added youtubeUrl property
-};
+  addedById: string;
+  addedAt: Date;
+  mood?: string;
+  youtubeUrl?: string;
+}
 
 interface MusicCommunityContextType {
   communities: Community[];
+  songs: Song[];
   currentCommunity: Community | null;
   currentUser: User | null;
-  songs: Song[];
   isLoading: boolean;
-  error: Error | null; // Add error property to the context type
-  createCommunity: (name: string) => Promise<void>;
-  joinCommunity: (communityId: string, username: string) => Promise<void>;
-  addSong: (spotifyUri: string, title: string, artist: string, albumArt: string, mood?: string, youtubeUrl?: string) => Promise<void>;
   canAddSong: boolean;
   setCurrentCommunity: (community: Community | null) => void;
   setCurrentUser: (user: User | null) => void;
+  createCommunity: (name: string, username: string) => Promise<void>;
+  joinCommunity: (communityId: string, username: string) => Promise<void>;
+  joinCommunityByCode: (code: string, username: string) => Promise<void>;
+  addSong: (
+    spotifyUri: string,
+    title: string,
+    artist: string,
+    albumArt: string,
+    mood?: string
+  ) => Promise<void>;
+  generateYoutubeUrl: (title: string, artist: string) => string;
+  generateShareableLink: (communityId: string) => string;
+  copyShareableLinkToClipboard: (communityId: string) => Promise<boolean>;
+  copyCodeToClipboard: (code: string) => Promise<boolean>;
 }
 
-// Mock data for initial development (will be replaced with real API calls)
+const MusicCommunityContext = createContext<MusicCommunityContextType | undefined>(undefined);
+
+const generateYoutubeUrl = (title: string, artist: string): string => {
+  const searchQuery = encodeURIComponent(`${title} ${artist}`);
+  return `https://www.youtube.com/results?search_query=${searchQuery}`;
+};
+
 const mockCommunities: Community[] = [
   {
     id: '1',
-    name: 'Indie Explorers',
-    creationDate: new Date('2023-01-15'),
+    name: 'Indie Music Lovers',
+    creationDate: new Date(2023, 5, 15),
+    members: 42,
+    code: 'INDIE42'
   },
   {
     id: '2',
     name: 'Electronic Beats',
-    creationDate: new Date('2023-02-20'),
+    creationDate: new Date(2023, 7, 3),
+    members: 28,
+    code: 'ELEC28'
   },
   {
     id: '3',
-    name: 'Jazz Collective',
-    creationDate: new Date('2023-03-10'),
-  },
+    name: 'Classic Rock Fans',
+    creationDate: new Date(2023, 2, 10),
+    members: 56,
+    code: 'ROCK56'
+  }
 ];
 
 const mockSongs: Song[] = [
   {
     id: '1',
-    spotifyUri: 'spotify:track:4cOdK2wGLETKBW3PvgPWqT',
-    title: 'Never Gonna Give You Up',
-    artist: 'Rick Astley',
-    albumArt: 'https://i.scdn.co/image/ab67616d00001e02c5eeda65bc53dffbe06bb4b4',
-    addedBy: 'MusicLover42',
-    timestamp: new Date('2023-06-10T12:30:00'),
+    title: 'Bohemian Rhapsody',
+    artist: 'Queen',
+    albumArt: 'https://i.scdn.co/image/ab67616d0000b2734e04404b0571ffb8f0cd5bae',
+    spotifyUri: 'spotify:track:3z8h0TU7ReDPLIbEnNQ0hF',
+    addedBy: 'RockFan42',
+    addedById: 'user1',
+    addedAt: new Date(2023, 9, 10, 12, 0),
+    mood: 'Energetic',
+    youtubeUrl: 'https://www.youtube.com/results?search_query=Bohemian+Rhapsody+Queen'
   },
   {
     id: '2',
-    spotifyUri: 'spotify:track:3z8h0TU7ReDPLIbEnYhWZb',
-    title: 'Bohemian Rhapsody',
-    artist: 'Queen',
-    albumArt: 'https://i.scdn.co/image/ab67616d00001e02d254ca497999ae980a5a38c5',
-    addedBy: 'ClassicRockFan',
-    timestamp: new Date('2023-06-11T09:15:00'),
+    title: 'Blinding Lights',
+    artist: 'The Weeknd',
+    albumArt: 'https://i.scdn.co/image/ab67616d0000b273b5d75a39b1e6d7d7acd715d2',
+    spotifyUri: 'spotify:track:0VjIjW4GlUZAMYd2vXMi3b',
+    addedBy: 'SynthWave',
+    addedById: 'user2',
+    addedAt: new Date(2023, 9, 12, 12, 0),
+    mood: 'Energetic',
+    youtubeUrl: 'https://www.youtube.com/results?search_query=Blinding+Lights+The+Weeknd'
   },
   {
     id: '3',
-    spotifyUri: 'spotify:track:1Qrg8KqiBpW07V7PNxwwwL',
-    title: 'Bad Guy',
-    artist: 'Billie Eilish',
-    albumArt: 'https://i.scdn.co/image/ab67616d00001e02c5849c655e5309209ce935b7',
-    addedBy: 'ModernPopFan',
-    timestamp: new Date('2023-06-12T14:45:00'),
-  },
-  {
-    id: '4',
-    spotifyUri: 'spotify:track:5ghIJDpPoe3CfHMGu71E6T',
-    title: 'Blinding Lights',
-    artist: 'The Weeknd',
-    albumArt: 'https://i.scdn.co/image/ab67616d00001e0200047f0f9fa3b2f9ce9c9283',
-    addedBy: 'WeekndFan',
-    timestamp: new Date('2023-06-13T18:20:00'),
-  },
+    title: 'Dreams',
+    artist: 'Fleetwood Mac',
+    albumArt: 'https://i.scdn.co/image/ab67616d0000b273548f7ec52da7313de0c5e4a0',
+    spotifyUri: 'spotify:track:0ofHAoxe9vBkTCp2UQIavz',
+    addedBy: 'VinylCollector',
+    addedById: 'user3',
+    addedAt: new Date(2023, 9, 15, 12, 0),
+    mood: 'Chill',
+    youtubeUrl: 'https://www.youtube.com/results?search_query=Dreams+Fleetwood+Mac'
+  }
 ];
 
-const MusicCommunityContext = createContext<MusicCommunityContextType | undefined>(undefined);
+const generateUniqueCode = (name: string): string => {
+  const prefix = name.slice(0, 4).toUpperCase().replace(/\s+/g, '');
+  const randomNum = Math.floor(Math.random() * 9000) + 1000;
+  return `${prefix}${randomNum}`;
+};
 
-export const MusicCommunityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const MusicCommunityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [communities, setCommunities] = useState<Community[]>(mockCommunities);
+  const [songs, setSongs] = useState<Song[]>(mockSongs);
   const [currentCommunity, setCurrentCommunity] = useState<Community | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [songs, setSongs] = useState<Song[]>(mockSongs);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [canAddSong, setCanAddSong] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null); // Add error state
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Check if user can add a song (1 per 24h)
   useEffect(() => {
-    if (!currentUser) {
-      setCanAddSong(false);
-      return;
+    const savedCommunity = localStorage.getItem('currentCommunity');
+    const savedUser = localStorage.getItem('currentUser');
+    
+    if (savedCommunity) {
+      setCurrentCommunity(JSON.parse(savedCommunity));
     }
-
-    const lastSongByUser = songs
-      .filter(song => song.addedBy === currentUser.username)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
-
-    if (!lastSongByUser) {
-      setCanAddSong(true);
-      return;
+    
+    if (savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
     }
+  }, []);
 
-    const hoursSinceLastAdd = (new Date().getTime() - lastSongByUser.timestamp.getTime()) / (1000 * 60 * 60);
-    setCanAddSong(hoursSinceLastAdd >= 24);
-  }, [currentUser, songs]);
+  useEffect(() => {
+    if (currentCommunity) {
+      localStorage.setItem('currentCommunity', JSON.stringify(currentCommunity));
+    } else {
+      localStorage.removeItem('currentCommunity');
+    }
+    
+    if (currentUser) {
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('currentUser');
+    }
+  }, [currentCommunity, currentUser]);
 
-  // Create a new community
-  const createCommunity = async (name: string) => {
+  const canAddSong = (): boolean => {
+    if (!currentUser) return false;
+    
+    if (!currentUser.lastSongAdded) return true;
+    
+    const lastAdded = new Date(currentUser.lastSongAdded);
+    const now = new Date();
+    const hoursSinceLastAdd = (now.getTime() - lastAdded.getTime()) / (1000 * 60 * 60);
+    
+    return hoursSinceLastAdd >= 24;
+  };
+
+  const createCommunity = async (name: string, username: string): Promise<void> => {
     setIsLoading(true);
-    setError(null); // Reset error state
+    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       const newCommunity: Community = {
-        id: `community-${Date.now()}`,
+        id: Date.now().toString(),
         name,
         creationDate: new Date(),
+        members: 1,
+        code: generateUniqueCode(name)
       };
-      
-      setCommunities([...communities, newCommunity]);
-      setCurrentCommunity(newCommunity);
-    } catch (err) {
-      console.error('Error creating community:', err);
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Join an existing community
-  const joinCommunity = async (communityId: string, username: string) => {
-    setIsLoading(true);
-    setError(null); // Reset error state
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const community = communities.find(c => c.id === communityId);
-      if (!community) throw new Error('Community not found');
       
       const newUser: User = {
-        id: `user-${Date.now()}`,
+        id: Date.now().toString(),
         username,
-        communityId,
+        lastSongAdded: undefined
       };
       
+      setCommunities(prev => [...prev, newCommunity]);
+      setCurrentCommunity(newCommunity);
       setCurrentUser(newUser);
-      setCurrentCommunity(community);
-    } catch (err) {
-      console.error('Error joining community:', err);
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Add a new song
-  const addSong = async (spotifyUri: string, title: string, artist: string, albumArt: string, mood?: string, youtubeUrl?: string) => {
-    if (!currentUser || !canAddSong) return;
+  const joinCommunity = async (communityId: string, username: string): Promise<void> => {
+    setIsLoading(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const community = communities.find(c => c.id === communityId);
+      
+      if (!community) {
+        throw new Error('Community not found');
+      }
+      
+      const newUser: User = {
+        id: Date.now().toString(),
+        username,
+        lastSongAdded: undefined
+      };
+      
+      const updatedCommunity = {
+        ...community,
+        members: community.members + 1
+      };
+      
+      setCommunities(prev => 
+        prev.map(c => c.id === communityId ? updatedCommunity : c)
+      );
+      
+      setCurrentCommunity(updatedCommunity);
+      setCurrentUser(newUser);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const joinCommunityByCode = async (code: string, username: string): Promise<void> => {
+    setIsLoading(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const community = communities.find(c => c.code === code);
+      
+      if (!community) {
+        throw new Error('Invalid community code');
+      }
+      
+      const newUser: User = {
+        id: Date.now().toString(),
+        username,
+        lastSongAdded: undefined
+      };
+      
+      const updatedCommunity = {
+        ...community,
+        members: community.members + 1
+      };
+      
+      setCommunities(prev => 
+        prev.map(c => c.id === community.id ? updatedCommunity : c)
+      );
+      
+      setCurrentCommunity(updatedCommunity);
+      setCurrentUser(newUser);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addSong = async (
+    spotifyUri: string,
+    title: string,
+    artist: string,
+    albumArt: string,
+    mood?: string
+  ): Promise<void> => {
+    if (!currentCommunity || !currentUser) {
+      throw new Error('User not in a community');
+    }
+    
+    if (!canAddSong()) {
+      throw new Error('You can only add one song every 24 hours');
+    }
     
     setIsLoading(true);
-    setError(null); // Reset error state
+    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const youtubeUrl = generateYoutubeUrl(title, artist);
       
       const newSong: Song = {
-        id: `song-${Date.now()}`,
-        spotifyUri,
+        id: Date.now().toString(),
         title,
         artist,
         albumArt,
+        spotifyUri,
         addedBy: currentUser.username,
-        timestamp: new Date(),
+        addedById: currentUser.id,
+        addedAt: new Date(),
         mood,
-        youtubeUrl,
+        youtubeUrl
       };
       
-      setSongs([newSong, ...songs]);
-      setCanAddSong(false);
-    } catch (err) {
-      console.error('Error adding song:', err);
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+      setSongs(prev => [newSong, ...prev]);
+      
+      const updatedUser = {
+        ...currentUser,
+        lastSongAdded: new Date()
+      };
+      
+      setCurrentUser(updatedUser);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const generateShareableLink = (communityId: string): string => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/onboarding?join=${communityId}`;
+  };
+
+  const copyShareableLinkToClipboard = async (communityId: string): Promise<boolean> => {
+    try {
+      const link = generateShareableLink(communityId);
+      await navigator.clipboard.writeText(link);
+      return true;
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+      return false;
+    }
+  };
+
+  const copyCodeToClipboard = async (code: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(code);
+      return true;
+    } catch (error) {
+      console.error('Failed to copy code:', error);
+      return false;
     }
   };
 
@@ -216,17 +348,21 @@ export const MusicCommunityProvider: React.FC<{ children: ReactNode }> = ({ chil
     <MusicCommunityContext.Provider
       value={{
         communities,
+        songs,
         currentCommunity,
         currentUser,
-        songs,
         isLoading,
-        error, // Add error to the provider
-        createCommunity,
-        joinCommunity,
-        addSong,
-        canAddSong,
+        canAddSong: canAddSong(),
         setCurrentCommunity,
         setCurrentUser,
+        createCommunity,
+        joinCommunity,
+        joinCommunityByCode,
+        addSong,
+        generateYoutubeUrl,
+        generateShareableLink,
+        copyShareableLinkToClipboard,
+        copyCodeToClipboard
       }}
     >
       {children}
@@ -234,10 +370,12 @@ export const MusicCommunityProvider: React.FC<{ children: ReactNode }> = ({ chil
   );
 };
 
-export const useMusicCommunity = () => {
+export const useMusicCommunity = (): MusicCommunityContextType => {
   const context = useContext(MusicCommunityContext);
+  
   if (context === undefined) {
     throw new Error('useMusicCommunity must be used within a MusicCommunityProvider');
   }
+  
   return context;
 };
