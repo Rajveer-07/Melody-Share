@@ -198,24 +198,135 @@
     transition: all 0.2s ease;
   }
   
-  /* Loading animations */
   .loading-skeleton {
     @apply bg-white/10 animate-pulse rounded;
   }
   
-  /* Mobile optimizations */
+  .share-button {
+    @apply relative overflow-hidden rounded-full px-3 py-1.5 md:px-4 md:py-2 text-white border-none outline-none cursor-pointer;
+    transition: all 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  
+  .share-button::before {
+    @apply absolute content-[''] top-0 left-0 w-full h-full z-[-1] rounded-full;
+    background: linear-gradient(135deg, #1DB954, #0f9d58);
+    transition: all 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  
+  .share-button:hover::before {
+    @apply transform scale-110;
+  }
+  
+  .share-button-content {
+    @apply flex items-center;
+    transition: all 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  
+  .share-button:hover .share-button-content {
+    @apply transform translate-y-[-30px];
+  }
+  
+  .share-button-text {
+    @apply inline-flex items-center;
+    transition: all 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
+    transition-delay: 0.05s;
+  }
+  
+  .share-button-icon {
+    @apply inline-flex items-center ml-1.5;
+    transition: all 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
+    transition-delay: 0.1s;
+  }
+  
+  .share-options {
+    @apply absolute top-1/2 left-0 right-0 flex justify-center items-center gap-2 transform translate-y-[-50%] opacity-0 pointer-events-none;
+    transition: all 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  
+  .share-button:hover .share-options {
+    @apply opacity-100 pointer-events-auto;
+  }
+  
+  .share-option {
+    @apply transform translate-y-[30px];
+    transition: all 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  
+  .share-button:hover .share-option {
+    @apply transform translate-y-0;
+  }
+  
+  .share-button:hover .share-option:nth-child(1) {
+    transition-delay: 0.1s;
+  }
+  
+  .share-button:hover .share-option:nth-child(2) {
+    transition-delay: 0.15s;
+  }
+
+  /* Curved white line border animation */
+  .curved-border-button {
+    @apply relative border-none overflow-hidden;
+  }
+  
+  .curved-border-button::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 9999px;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  .curved-border-button::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, transparent, transparent, transparent, transparent, white, transparent, transparent, transparent, transparent);
+    background-size: 500% 500%;
+    z-index: 2;
+    pointer-events: none;
+    animation: borderAnimation 4s ease infinite;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .curved-border-button:hover::before {
+    opacity: 1;
+  }
+  
+  @keyframes borderAnimation {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  
   @media (max-width: 640px) {
-    .song-details {
-      @apply truncate;
+    .share-button {
+      @apply w-full flex justify-center;
     }
     
-    .song-actions {
-      @apply flex-shrink-0;
+    .share-options {
+      @apply gap-4;
     }
   }
 }
 
-/* Add this special breakpoint for extra small devices */
 @layer utilities {
   @variants responsive {
     .xs\:inline {

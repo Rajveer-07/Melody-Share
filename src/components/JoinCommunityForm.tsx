@@ -13,16 +13,38 @@ interface JoinCommunityFormProps {
 }
 
 const JoinCommunityForm: React.FC<JoinCommunityFormProps> = ({ communityId, onComplete, onBack }) => {
-  const { joinCommunity, communities, isLoading } = useMusicCommunity();
+  const { joinCommunity, communities, isLoading, checkUsernameExists } = useMusicCommunity();
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+  const [isExistingUser, setIsExistingUser] = useState(false);
 
   const community = communities.find(c => c.id === communityId);
 
   // Validation constants
   const MIN_USERNAME_LENGTH = 3;
   const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/; // Alphanumeric and underscores only
+
+  // Debounced username check
+  const checkUsername = useCallback(
+    debounce(async (name: string) => {
+      if (name.length >= MIN_USERNAME_LENGTH && USERNAME_REGEX.test(name)) {
+        setIsValidating(true);
+        try {
+          const exists = await checkUsernameExists(name);
+          setIsExistingUser(exists);
+          if (exists) {
+            setError(''); // Clear error if username exists (valid)
+          }
+        } catch (err) {
+          console.error('Error checking username:', err);
+        } finally {
+          setIsValidating(false);
+        }
+      }
+    }, 500),
+    [checkUsernameExists]
+  );
 
   // Debounced validation function
   const validate = useCallback(
@@ -47,8 +69,9 @@ const JoinCommunityForm: React.FC<JoinCommunityFormProps> = ({ communityId, onCo
   useEffect(() => {
     setIsValidating(true);
     validate();
+    checkUsername(username);
     setIsValidating(false);
-  }, [username, validate]);
+  }, [username, validate, checkUsername]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,15 +80,24 @@ const JoinCommunityForm: React.FC<JoinCommunityFormProps> = ({ communityId, onCo
 
     try {
       await joinCommunity(communityId, username);
-      toast({
-        title: "Joined community",
-        description: `You've successfully joined "${community?.name}".`
-      });
+      
+      if (isExistingUser) {
+        toast({
+          title: "Welcome back!",
+          description: `You've rejoined "${community?.name}" as an existing user.`
+        });
+      } else {
+        toast({
+          title: "Joined community",
+          description: `You've successfully joined "${community?.name}".`
+        });
+      }
       onComplete();
     } catch (error) {
       toast({
         title: "Failed to join community",
-        description: "There was an error joining the community. Please try again."
+        description: "There was an error joining the community. Please try again.",
+        variant: "destructive"
       });
     }
   };
@@ -144,6 +176,16 @@ const JoinCommunityForm: React.FC<JoinCommunityFormProps> = ({ communityId, onCo
                 {error}
               </motion.p>
             )}
+            {isExistingUser && !error && (
+              <motion.p
+                className="text-green-400 text-xs mt-1"
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+              >
+                Existing username detected - you'll join as a returning user
+              </motion.p>
+            )}
           </motion.div>
 
           <motion.div className="flex gap-3 pt-2" variants={itemVariants}>
@@ -173,7 +215,7 @@ const JoinCommunityForm: React.FC<JoinCommunityFormProps> = ({ communityId, onCo
                   Joining...
                 </>
               ) : (
-                <>Join Now</>
+                <>{isExistingUser ? 'Rejoin' : 'Join Now'}</>
               )}
             </motion.button>
           </motion.div>

@@ -1,4 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { Song as SongType, User as UserType } from '../types';
+import {
+  signInAnonymousUser,
+  saveCommunity,
+  getCommunities,
+  subscribeCommunities,
+  saveUser,
+  checkUsernameExists as checkFirebaseUsernameExists,
+  getUserByUsername,
+  updateCommunityMemberCount,
+  saveSong as saveFirebaseSong,
+  subscribeSongs
+} from '../lib/firebase';
 
 export interface Community {
   id: string;
@@ -8,24 +21,8 @@ export interface Community {
   code: string;
 }
 
-export interface User {
-  id: string;
-  username: string;
-  lastSongAdded?: Date;
-}
-
-export interface Song {
-  id: string;
-  title: string;
-  artist: string;
-  albumArt: string;
-  spotifyUri: string;
-  addedBy: string;
-  addedById: string;
-  addedAt: Date;
-  mood?: string;
-  youtubeUrl?: string;
-}
+export type User = UserType;
+export type Song = SongType;
 
 interface MusicCommunityContextType {
   communities: Community[];
@@ -50,6 +47,7 @@ interface MusicCommunityContextType {
   generateShareableLink: (communityId: string) => string;
   copyShareableLinkToClipboard: (communityId: string) => Promise<boolean>;
   copyCodeToClipboard: (code: string) => Promise<boolean>;
+  checkUsernameExists: (username: string) => Promise<boolean>;
 }
 
 const MusicCommunityContext = createContext<MusicCommunityContextType | undefined>(undefined);
@@ -59,30 +57,6 @@ const generateYoutubeUrl = (title: string, artist: string): string => {
   return `https://www.youtube.com/results?search_query=${searchQuery}`;
 };
 
-const mockCommunities: Community[] = [
-  {
-    id: '1',
-    name: 'Indie Music Lovers',
-    creationDate: new Date(2023, 5, 15),
-    members: 42,
-    code: 'INDIE42'
-  },
-  {
-    id: '2',
-    name: 'Electronic Beats',
-    creationDate: new Date(2023, 7, 3),
-    members: 28,
-    code: 'ELEC28'
-  },
-  {
-    id: '3',
-    name: 'Classic Rock Fans',
-    creationDate: new Date(2023, 2, 10),
-    members: 56,
-    code: 'ROCK56'
-  }
-];
-
 const mockSongs: Song[] = [
   {
     id: '1',
@@ -90,9 +64,10 @@ const mockSongs: Song[] = [
     artist: 'Queen',
     albumArt: 'https://i.scdn.co/image/ab67616d0000b2734e04404b0571ffb8f0cd5bae',
     spotifyUri: 'spotify:track:3z8h0TU7ReDPLIbEnNQ0hF',
+    spotifyId: '3z8h0TU7ReDPLIbEnNQ0hF',
     addedBy: 'RockFan42',
     addedById: 'user1',
-    addedAt: new Date(2023, 9, 10, 12, 0),
+    addedAt: new Date(2023, 9, 10, 12, 0).toISOString(),
     mood: 'Energetic',
     youtubeUrl: 'https://www.youtube.com/results?search_query=Bohemian+Rhapsody+Queen'
   },
@@ -102,9 +77,10 @@ const mockSongs: Song[] = [
     artist: 'The Weeknd',
     albumArt: 'https://i.scdn.co/image/ab67616d0000b273b5d75a39b1e6d7d7acd715d2',
     spotifyUri: 'spotify:track:0VjIjW4GlUZAMYd2vXMi3b',
+    spotifyId: '0VjIjW4GlUZAMYd2vXMi3b',
     addedBy: 'SynthWave',
     addedById: 'user2',
-    addedAt: new Date(2023, 9, 12, 12, 0),
+    addedAt: new Date(2023, 9, 12, 12, 0).toISOString(),
     mood: 'Energetic',
     youtubeUrl: 'https://www.youtube.com/results?search_query=Blinding+Lights+The+Weeknd'
   },
@@ -114,9 +90,10 @@ const mockSongs: Song[] = [
     artist: 'Fleetwood Mac',
     albumArt: 'https://i.scdn.co/image/ab67616d0000b273548f7ec52da7313de0c5e4a0',
     spotifyUri: 'spotify:track:0ofHAoxe9vBkTCp2UQIavz',
+    spotifyId: '0ofHAoxe9vBkTCp2UQIavz',
     addedBy: 'VinylCollector',
     addedById: 'user3',
-    addedAt: new Date(2023, 9, 15, 12, 0),
+    addedAt: new Date(2023, 9, 15, 12, 0).toISOString(),
     mood: 'Chill',
     youtubeUrl: 'https://www.youtube.com/results?search_query=Dreams+Fleetwood+Mac'
   }
@@ -129,12 +106,42 @@ const generateUniqueCode = (name: string): string => {
 };
 
 export const MusicCommunityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [communities, setCommunities] = useState<Community[]>(mockCommunities);
+  const [communities, setCommunities] = useState<Community[]>([]);
   const [songs, setSongs] = useState<Song[]>(mockSongs);
   const [currentCommunity, setCurrentCommunity] = useState<Community | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Initialize Firebase anonymous auth
+  useEffect(() => {
+    signInAnonymousUser();
+  }, []);
 
+  // Subscribe to communities data from Firestore
+  useEffect(() => {
+    const unsubscribe = subscribeCommunities((fetchedCommunities) => {
+      console.log("Received communities from Firestore:", fetchedCommunities);
+      setCommunities(fetchedCommunities);
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  // Subscribe to songs when community changes
+  useEffect(() => {
+    if (!currentCommunity?.code) return;
+    
+    const unsubscribe = subscribeSongs(currentCommunity.code, (fetchedSongs) => {
+      console.log("Received songs for community:", currentCommunity.code, fetchedSongs);
+      if (fetchedSongs.length > 0) {
+        setSongs(fetchedSongs);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [currentCommunity]);
+
+  // Load user and community from localStorage on initial load
   useEffect(() => {
     const savedCommunity = localStorage.getItem('currentCommunity');
     const savedUser = localStorage.getItem('currentUser');
@@ -148,6 +155,7 @@ export const MusicCommunityProvider: React.FC<{ children: React.ReactNode }> = (
     }
   }, []);
 
+  // Save user and community to localStorage when they change
   useEffect(() => {
     if (currentCommunity) {
       localStorage.setItem('currentCommunity', JSON.stringify(currentCommunity));
@@ -178,27 +186,87 @@ export const MusicCommunityProvider: React.FC<{ children: React.ReactNode }> = (
     setIsLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await signInAnonymousUser(); // Ensure we have an authenticated user
       
-      const newCommunity: Community = {
-        id: Date.now().toString(),
+      const communityCode = generateUniqueCode(name);
+      
+      // Save community to Firestore
+      const { success, id } = await saveCommunity({
         name,
         creationDate: new Date(),
         members: 1,
-        code: generateUniqueCode(name)
+        code: communityCode
+      });
+      
+      if (!success || !id) {
+        throw new Error('Failed to create community');
+      }
+      
+      console.log("Community created in Firebase with ID:", id);
+      
+      // Create the new community object
+      const newCommunity: Community = {
+        id,
+        name,
+        creationDate: new Date(),
+        members: 1,
+        code: communityCode
       };
       
-      const newUser: User = {
-        id: Date.now().toString(),
-        username,
-        lastSongAdded: undefined
-      };
+      // Check if username already exists
+      const usernameExists = await checkUsernameExists(username);
+      let newUser: User;
       
-      setCommunities(prev => [...prev, newCommunity]);
+      if (usernameExists) {
+        // Get existing user 
+        const existingUser = await getUserByUsername(username);
+        if (existingUser) {
+          newUser = {
+            ...existingUser,
+            communityCode: newCommunity.code
+          };
+        } else {
+          // Fallback
+          newUser = {
+            id: Date.now().toString(),
+            username,
+            name: username,
+            communityCode: newCommunity.code,
+            isGuest: true
+          };
+        }
+      } else {
+        // Create new user
+        newUser = {
+          id: Date.now().toString(),
+          username,
+          name: username,
+          communityCode: newCommunity.code,
+          isGuest: true
+        };
+      }
+      
+      // Save user to Firestore
+      await saveUser(newUser);
+      console.log("User saved to Firebase:", newUser);
+      
+      // Update local state
       setCurrentCommunity(newCommunity);
       setCurrentUser(newUser);
+    } catch (error) {
+      console.error('Error creating community:', error);
+      throw error;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const checkUsernameExists = async (username: string): Promise<boolean> => {
+    try {
+      return await checkFirebaseUsernameExists(username);
+    } catch (error) {
+      console.error('Error checking username:', error);
+      return false;
     }
   };
 
@@ -206,7 +274,7 @@ export const MusicCommunityProvider: React.FC<{ children: React.ReactNode }> = (
     setIsLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await signInAnonymousUser(); // Ensure we have an authenticated user
       
       const community = communities.find(c => c.id === communityId);
       
@@ -214,22 +282,72 @@ export const MusicCommunityProvider: React.FC<{ children: React.ReactNode }> = (
         throw new Error('Community not found');
       }
       
-      const newUser: User = {
-        id: Date.now().toString(),
-        username,
-        lastSongAdded: undefined
-      };
+      // Check if the username already exists
+      const usernameExists = await checkUsernameExists(username);
+      let newUser: User;
+      let isNewMember = true;
       
-      const updatedCommunity = {
-        ...community,
-        members: community.members + 1
-      };
+      if (usernameExists) {
+        // Get the existing user from Firestore
+        const existingUser = await getUserByUsername(username);
+        
+        if (existingUser) {
+          // Check if user has already been in this community before
+          isNewMember = existingUser.communityCode !== community.code;
+          
+          newUser = {
+            ...existingUser,
+            communityCode: community.code
+          };
+          
+          // Update the user in Firestore
+          await saveUser(newUser);
+        } else {
+          // Fallback if we can't find the user (shouldn't happen)
+          newUser = {
+            id: Date.now().toString(),
+            username,
+            name: username,
+            communityCode: community.code,
+            isGuest: true
+          };
+          
+          // Save new user to Firestore
+          await saveUser(newUser);
+        }
+      } else {
+        // Create a new user
+        newUser = {
+          id: Date.now().toString(),
+          username,
+          name: username,
+          communityCode: community.code,
+          isGuest: true
+        };
+        
+        // Save new user to Firestore
+        await saveUser(newUser);
+      }
       
-      setCommunities(prev => 
-        prev.map(c => c.id === communityId ? updatedCommunity : c)
-      );
+      // Only increment members count if it's a new member
+      if (isNewMember) {
+        await updateCommunityMemberCount(communityId, true);
+        
+        // Update the local community object
+        const updatedCommunity = {
+          ...community,
+          members: community.members + 1
+        };
+        
+        setCommunities(prev => 
+          prev.map(c => c.id === communityId ? updatedCommunity : c)
+        );
+        
+        setCurrentCommunity(updatedCommunity);
+      } else {
+        setCurrentCommunity(community);
+      }
       
-      setCurrentCommunity(updatedCommunity);
       setCurrentUser(newUser);
     } finally {
       setIsLoading(false);
@@ -240,7 +358,7 @@ export const MusicCommunityProvider: React.FC<{ children: React.ReactNode }> = (
     setIsLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await signInAnonymousUser(); // Ensure we have an authenticated user
       
       const community = communities.find(c => c.code === code);
       
@@ -248,22 +366,72 @@ export const MusicCommunityProvider: React.FC<{ children: React.ReactNode }> = (
         throw new Error('Invalid community code');
       }
       
-      const newUser: User = {
-        id: Date.now().toString(),
-        username,
-        lastSongAdded: undefined
-      };
+      // Check if the username already exists
+      const usernameExists = await checkUsernameExists(username);
+      let newUser: User;
+      let isNewMember = true;
       
-      const updatedCommunity = {
-        ...community,
-        members: community.members + 1
-      };
+      if (usernameExists) {
+        // Get the existing user from Firestore
+        const existingUser = await getUserByUsername(username);
+        
+        if (existingUser) {
+          // Check if user has already been in this community before
+          isNewMember = existingUser.communityCode !== community.code;
+          
+          newUser = {
+            ...existingUser,
+            communityCode: community.code
+          };
+          
+          // Update the user in Firestore
+          await saveUser(newUser);
+        } else {
+          // Fallback if we can't find the user (shouldn't happen)
+          newUser = {
+            id: Date.now().toString(),
+            username,
+            name: username,
+            communityCode: community.code,
+            isGuest: true
+          };
+          
+          // Save new user to Firestore
+          await saveUser(newUser);
+        }
+      } else {
+        // Create a new user
+        newUser = {
+          id: Date.now().toString(),
+          username,
+          name: username,
+          communityCode: community.code,
+          isGuest: true
+        };
+        
+        // Save new user to Firestore
+        await saveUser(newUser);
+      }
       
-      setCommunities(prev => 
-        prev.map(c => c.id === community.id ? updatedCommunity : c)
-      );
+      // Only increment members count if it's a new member
+      if (isNewMember) {
+        await updateCommunityMemberCount(community.id, true);
+        
+        // Update the local community object
+        const updatedCommunity = {
+          ...community,
+          members: community.members + 1
+        };
+        
+        setCommunities(prev => 
+          prev.map(c => c.id === community.id ? updatedCommunity : c)
+        );
+        
+        setCurrentCommunity(updatedCommunity);
+      } else {
+        setCurrentCommunity(community);
+      }
       
-      setCurrentCommunity(updatedCommunity);
       setCurrentUser(newUser);
     } finally {
       setIsLoading(false);
@@ -288,29 +456,32 @@ export const MusicCommunityProvider: React.FC<{ children: React.ReactNode }> = (
     setIsLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       const youtubeUrl = generateYoutubeUrl(title, artist);
       
-      const newSong: Song = {
-        id: Date.now().toString(),
+      const songData: Omit<Song, 'id' | 'addedAt'> = {
         title,
         artist,
         albumArt,
         spotifyUri,
-        addedBy: currentUser.username,
-        addedById: currentUser.id,
-        addedAt: new Date(),
+        spotifyId: spotifyUri.split(':').pop() || '',
+        addedBy: currentUser.username || '',
+        addedById: currentUser.id || '',
         mood,
-        youtubeUrl
+        youtubeUrl,
+        communityCode: currentUser.communityCode
       };
       
-      setSongs(prev => [newSong, ...prev]);
+      // Save song to Firestore
+      await saveFirebaseSong(songData, currentUser.communityCode);
       
-      const updatedUser = {
+      // Update the current user with the new lastSongAdded
+      const updatedUser: User = {
         ...currentUser,
-        lastSongAdded: new Date()
+        lastSongAdded: new Date().toISOString()
       };
+      
+      // Save updated user to Firestore
+      await saveUser(updatedUser);
       
       setCurrentUser(updatedUser);
     } finally {
@@ -362,7 +533,8 @@ export const MusicCommunityProvider: React.FC<{ children: React.ReactNode }> = (
         generateYoutubeUrl,
         generateShareableLink,
         copyShareableLinkToClipboard,
-        copyCodeToClipboard
+        copyCodeToClipboard,
+        checkUsernameExists
       }}
     >
       {children}

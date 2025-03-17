@@ -1,4 +1,3 @@
-
 import { Variants } from "framer-motion";
 
 // Common animation variants for Framer Motion
@@ -112,6 +111,107 @@ export const pageTransition = {
   },
 };
 
+// Swift-inspired transitions
+export const swiftTransition = (direction: "up" | "down" | "left" | "right" = "up", duration: number = 0.5): Variants => {
+  const xOffset = direction === "left" ? 30 : direction === "right" ? -30 : 0;
+  const yOffset = direction === "up" ? 30 : direction === "down" ? -30 : 0;
+
+  return {
+    initial: { 
+      opacity: 0, 
+      x: xOffset, 
+      y: yOffset,
+      filter: "blur(8px)",
+    },
+    animate: { 
+      opacity: 1, 
+      x: 0, 
+      y: 0,
+      filter: "blur(0px)",
+      transition: {
+        x: { type: "spring", stiffness: 300, damping: 30, duration },
+        y: { type: "spring", stiffness: 300, damping: 30, duration },
+        opacity: { duration: duration * 0.7 },
+        filter: { duration: duration * 0.7 },
+      }
+    },
+    exit: { 
+      opacity: 0, 
+      x: direction === "left" ? -20 : direction === "right" ? 20 : 0,
+      y: direction === "up" ? -20 : direction === "down" ? 20 : 0,
+      filter: "blur(4px)",
+      transition: { 
+        duration: duration * 0.5,
+      } 
+    }
+  };
+};
+
+// SwiftUI-inspired spring animation
+export const springTransition = (delay: number = 0): Variants => ({
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 24,
+      mass: 1,
+      delay,
+      duration: 0.8,
+    },
+  },
+});
+
+// Material transition with elevation and shadow
+export const elevationTransition = {
+  initial: { 
+    opacity: 0, 
+    y: 20, 
+    boxShadow: "0px 0px 0px rgba(0,0,0,0)"
+  },
+  animate: { 
+    opacity: 1, 
+    y: 0, 
+    boxShadow: "0px 10px 25px rgba(0,0,0,0.1)",
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 30,
+      duration: 0.7,
+    }
+  },
+  exit: { 
+    opacity: 0, 
+    y: 10, 
+    boxShadow: "0px 0px 0px rgba(0,0,0,0)",
+    transition: { duration: 0.3 } 
+  }
+};
+
+// Match the iOS modal presentation style
+export const modalTransition = {
+  initial: { opacity: 0, y: 50, scale: 0.97 },
+  animate: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: {
+      type: "spring",
+      damping: 25,
+      stiffness: 300,
+      duration: 0.5,
+    }
+  },
+  exit: { 
+    opacity: 0, 
+    y: 30, 
+    scale: 0.97,
+    transition: { duration: 0.3 } 
+  }
+};
+
 // More complex staggered animations
 export const containerWithStagger = (delay: number = 0): Variants => ({
   hidden: { opacity: 0 },
@@ -132,8 +232,8 @@ export const itemWithBounce: Variants = {
     opacity: 1,
     transition: {
       type: "spring",
-      stiffness: 400,
-      damping: 17,
+      damping: 25,
+      stiffness: 500
     },
   },
 };

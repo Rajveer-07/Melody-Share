@@ -28,26 +28,37 @@ const ShareOptionsMenu: React.FC<ShareOptionsMenuProps> = ({
     setCopyingCode(true);
     
     try {
-      const success = await copyCodeToClipboard(community.code);
+      // Use the native clipboard API for better reliability
+      await navigator.clipboard.writeText(community.code);
       
-      if (success) {
+      toast({
+        title: "Code copied!",
+        description: `Community code "${community.code}" has been copied to clipboard.`,
+      });
+    } catch (error) {
+      // Fallback to the context method if navigator.clipboard fails
+      try {
+        const success = await copyCodeToClipboard(community.code);
+        
+        if (success) {
+          toast({
+            title: "Code copied!",
+            description: `Community code "${community.code}" has been copied to clipboard.`,
+          });
+        } else {
+          toast({
+            title: "Couldn't copy code",
+            description: "Please try again",
+            variant: "destructive",
+          });
+        }
+      } catch (fallbackError) {
         toast({
-          title: "Code copied!",
-          description: `Community code "${community.code}" has been copied to clipboard.`,
-        });
-      } else {
-        toast({
-          title: "Couldn't copy code",
-          description: "Please try again",
-          variant: "destructive",
+          title: "Error",
+          description: "Something went wrong",
+          variant: "destructive"
         });
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong",
-        variant: "destructive"
-      });
     } finally {
       setTimeout(() => {
         setCopyingCode(false);
@@ -60,26 +71,38 @@ const ShareOptionsMenu: React.FC<ShareOptionsMenuProps> = ({
     setCopyingLink(true);
     
     try {
-      const success = await copyShareableLinkToClipboard(communityId);
+      // Create a shareable link and use the native clipboard API
+      const shareableLink = `${window.location.origin}/join?code=${community.code}`;
+      await navigator.clipboard.writeText(shareableLink);
       
-      if (success) {
+      toast({
+        title: "Link copied!",
+        description: `Share link to "${community.name}" has been copied to clipboard.`,
+      });
+    } catch (error) {
+      // Fallback to the context method
+      try {
+        const success = await copyShareableLinkToClipboard(communityId);
+        
+        if (success) {
+          toast({
+            title: "Link copied!",
+            description: `Share link to "${community.name}" has been copied to clipboard.`,
+          });
+        } else {
+          toast({
+            title: "Couldn't copy link",
+            description: "Please try again",
+            variant: "destructive",
+          });
+        }
+      } catch (fallbackError) {
         toast({
-          title: "Link copied!",
-          description: `Share link to "${community.name}" has been copied to clipboard.`,
-        });
-      } else {
-        toast({
-          title: "Couldn't copy link",
-          description: "Please try again",
-          variant: "destructive",
+          title: "Error",
+          description: "Something went wrong",
+          variant: "destructive" 
         });
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong",
-        variant: "destructive" 
-      });
     } finally {
       setTimeout(() => {
         setCopyingLink(false);
@@ -141,7 +164,7 @@ const ShareOptionsMenu: React.FC<ShareOptionsMenuProps> = ({
           />
           
           <motion.div 
-            className="absolute right-0 top-10 z-50 bg-music-card rounded-lg shadow-xl border border-white/10 overflow-hidden w-48"
+            className="absolute right-0 top-10 z-50 bg-music-card rounded-lg shadow-xl border border-white/10 overflow-hidden w-48 sm:w-56"
             variants={menuVariants}
             initial="hidden"
             animate="visible"
@@ -160,23 +183,6 @@ const ShareOptionsMenu: React.FC<ShareOptionsMenuProps> = ({
             <div className="p-1">
               <motion.button
                 className="w-full text-left flex items-center space-x-3 px-3 py-2.5 rounded-md transition-colors hover:bg-white/10"
-                onClick={handleCopyCode}
-                variants={itemVariants}
-                whileHover={{ scale: 1.03 }}
-                disabled={copyingCode}
-              >
-                <motion.div 
-                  animate={copyingCode ? { rotate: 360 } : {}}
-                  transition={{ duration: 0.5 }}
-                  className="text-indigo-400"
-                >
-                  {copyingCode ? <Check size={16} /> : <Copy size={16} />}
-                </motion.div>
-                <span>Copy Code</span>
-              </motion.button>
-              
-              <motion.button
-                className="w-full text-left flex items-center space-x-3 px-3 py-2.5 rounded-md transition-colors hover:bg-white/10"
                 onClick={handleCopyLink}
                 variants={itemVariants}
                 whileHover={{ scale: 1.03 }}
@@ -190,6 +196,23 @@ const ShareOptionsMenu: React.FC<ShareOptionsMenuProps> = ({
                   {copyingLink ? <Check size={16} /> : <Link size={16} />}
                 </motion.div>
                 <span>Share Link</span>
+              </motion.button>
+              
+              <motion.button
+                className="w-full text-left flex items-center space-x-3 px-3 py-2.5 rounded-md transition-colors hover:bg-white/10"
+                onClick={handleCopyCode}
+                variants={itemVariants}
+                whileHover={{ scale: 1.03 }}
+                disabled={copyingCode}
+              >
+                <motion.div 
+                  animate={copyingCode ? { rotate: 360 } : {}}
+                  transition={{ duration: 0.5 }}
+                  className="text-indigo-400"
+                >
+                  {copyingCode ? <Check size={16} /> : <Copy size={16} />}
+                </motion.div>
+                <span>Copy Code</span>
               </motion.button>
             </div>
           </motion.div>

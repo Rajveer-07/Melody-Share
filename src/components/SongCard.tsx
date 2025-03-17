@@ -10,7 +10,7 @@ interface SongCardProps {
   addedBy: string;
   spotifyUri: string;
   mood?: string;
-  onClick?: () => void; // Add the onClick prop
+  onClick?: () => void;
 }
 
 const SongCard: React.FC<SongCardProps> = ({
@@ -25,6 +25,7 @@ const SongCard: React.FC<SongCardProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   // Extract the track ID from the Spotify URI
   const trackId = spotifyUri.split(':').pop();
@@ -37,19 +38,28 @@ const SongCard: React.FC<SongCardProps> = ({
     }
   };
 
+  // Fallback image if the provided album art fails to load
+  const fallbackImage = "/placeholder.svg";
+
   return (
     <div
       className="song-card w-full sm:w-[300px] h-[300px] flex flex-col"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="song-image-container">
-        <div className={`absolute inset-0 loading-skeleton ${imageLoaded ? 'hidden' : 'block'}`}></div>
+      <div className="song-image-container relative w-full aspect-square overflow-hidden">
+        <div className={`absolute inset-0 loading-skeleton ${imageLoaded && !imageError ? 'hidden' : 'block'}`}></div>
         <img
-          src={albumArt}
+          src={imageError ? fallbackImage : albumArt}
           alt={`${title} by ${artist}`}
-          className={`song-image transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`song-image w-full h-full object-cover transition-opacity duration-300 ${
+            imageLoaded && !imageError ? 'opacity-100' : 'opacity-0'
+          }`}
           onLoad={() => setImageLoaded(true)}
+          onError={() => {
+            setImageError(true);
+            setImageLoaded(true);
+          }}
         />
         
         {/* Play overlay */}

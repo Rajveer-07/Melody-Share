@@ -1,9 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Search, Music, Loader } from 'lucide-react';
+import { X, Search, Music, Loader, AlertCircle } from 'lucide-react';
 import { useMusicCommunity } from '../context/MusicCommunityContext';
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from 'framer-motion';
+import { searchSongs, getSpotifyEmbedUrl } from '../lib/spotify';
+import { saveSong, signInAnonymousUser } from '../lib/firebase';
+import { Fragment } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
 
 interface SpotifyTrack {
   id: string;
@@ -20,70 +24,6 @@ interface AddSongModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-// Mood options
-const moodOptions = [
-  'Happy', 'Energetic', 'Chill', 'Sad', 'Focused', 'Romantic', 'Nostalgic'
-];
-
-// Spotify API credentials
-const CLIENT_ID = "20abdc95aa1a47db9bd68a1a27fc39b6";
-const CLIENT_SECRET = "38bfa455eb934fd590e5cf99af950a1e";
-let accessToken = "";
-
-// Function to get Spotify Access Token
-const getAccessToken = async () => {
-  try {
-    const response = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: `grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`
-    });
-
-    const data = await response.json();
-    accessToken = data.access_token;
-    console.log("Access Token acquired");
-    return accessToken;
-  } catch (error) {
-    console.error("Error getting access token:", error);
-    throw error;
-  }
-};
-
-// Function to search songs from Spotify API
-const searchSpotifyTracks = async (query: string): Promise<SpotifyTrack[]> => {
-  if (!query.trim()) return [];
-  
-  try {
-    if (!accessToken) {
-      await getAccessToken();
-    }
-    
-    const response = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      }
-    );
-    
-    // Handle token expiration
-    if (response.status === 401) {
-      accessToken = "";
-      await getAccessToken();
-      return searchSpotifyTracks(query);
-    }
-    
-    const data = await response.json();
-    return data.tracks.items;
-  } catch (error) {
-    console.error("Error searching tracks:", error);
-    return [];
-  }
-};
 
 // Animation variants
 const modalOverlayVariants = {
@@ -130,13 +70,34 @@ const buttonVariants = {
   tap: { scale: 0.95, transition: { duration: 0.1 } }
 };
 
+// Mood options
+const moods = [
+  { id: 'happy', label: 'Happy', emoji: '😊' },
+  { id: 'energetic', label: 'Energetic', emoji: '⚡' },
+  { id: 'chill', label: 'Chill', emoji: '😌' },
+  { id: 'sad', label: 'Sad', emoji: '😢' },
+  { id: 'romantic', label: 'Romantic', emoji: '❤️' },
+  { id: 'focused', label: 'Focused', emoji: '🎯' },
+  { id: 'nostalgic', label: 'Nostalgic', emoji: '🕰️' },
+];
+
 const AddSongModal: React.FC<AddSongModalProps> = ({ isOpen, onClose }) => {
-  const { addSong, canAddSong, isLoading } = useMusicCommunity();
+  const { currentUser, canAddSong, currentCommunity } = useMusicCommunity();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([]);
   const [selectedMood, setSelectedMood] = useState<string>('');
   const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!currentCommunity && isOpen) {
+      setError('You need to be in a community to add songs.');
+    } else {
+      setError(null);
+    }
+  }, [currentCommunity, isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -169,15 +130,22 @@ const AddSongModal: React.FC<AddSongModalProps> = ({ isOpen, onClose }) => {
     if (!searchQuery.trim()) return;
     
     setIsSearching(true);
+    setError(null);
     try {
-      const results = await searchSpotifyTracks(searchQuery);
-      setSearchResults(results);
+      const results = await searchSongs(searchQuery);
+      if (!results || results.length === 0) {
+        setError('No songs found. Try a different search term.');
+        setSearchResults([]);
+      } else {
+        setSearchResults(results);
+      }
     } catch (error) {
       console.error("Search error:", error);
       toast({
         title: "Search failed",
         description: "There was an error searching for songs. Please try again."
       });
+      setError('Failed to search songs. Please try again.');
     } finally {
       setIsSearching(false);
     }
@@ -194,10 +162,6 @@ const AddSongModal: React.FC<AddSongModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleMoodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedMood(e.target.value);
-  };
-
   const handleAddSong = async (track: SpotifyTrack) => {
     if (!canAddSong) {
       toast({
@@ -206,25 +170,75 @@ const AddSongModal: React.FC<AddSongModalProps> = ({ isOpen, onClose }) => {
       });
       return;
     }
+
+    if (!selectedMood) {
+      setError('Please select a mood before adding the song.');
+      return;
+    }
     
+    if (!currentCommunity) {
+      toast({
+        title: "Cannot add song",
+        description: "You need to be in a community to add songs."
+      });
+      return;
+    }
+    
+    const communityCode = currentCommunity.code;
+    if (!communityCode) {
+      toast({
+        title: "Cannot add song",
+        description: "Invalid community information."
+      });
+      return;
+    }
+    
+    setIsLoading(true);
     try {
+      await signInAnonymousUser();
+      
       const artistNames = track.artists.map(artist => artist.name).join(', ');
       const albumArt = track.album.images[0]?.url || '';
       
-      await addSong(track.uri, track.name, artistNames, albumArt, selectedMood);
+      const songData = {
+        title: track.name,
+        artist: artistNames,
+        albumArt: albumArt,
+        spotifyUri: track.uri,
+        spotifyId: track.id,
+        addedBy: currentUser?.username || 'Guest',
+        addedById: currentUser?.id || 'guest-user',
+        mood: selectedMood,
+        youtubeUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${track.name} ${artistNames}`)}`
+      };
       
-      toast({
-        title: "Song added successfully",
-        description: `"${track.name}" has been added to the community feed.`
-      });
+      const result = await saveSong(songData, communityCode);
       
-      onClose();
+      if (result.success) {
+        toast({
+          title: "Song added successfully",
+          description: `"${track.name}" has been added to the community feed.`
+        });
+        onClose();
+        setSearchQuery('');
+        setSelectedMood('');
+        setSearchResults([]);
+      } else {
+        throw new Error("Failed to save song");
+      }
     } catch (error) {
+      console.error("Error adding song:", error);
       toast({
         title: "Failed to add song",
         description: "There was an error adding your song. Please try again."
       });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleImageError = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    event.currentTarget.src = '/placeholder.svg';
   };
 
   if (!isOpen) return null;
@@ -273,14 +287,13 @@ const AddSongModal: React.FC<AddSongModalProps> = ({ isOpen, onClose }) => {
                 <motion.input
                   type="text"
                   placeholder="Search for a song..."
-                  className="fancy-input pl-10"
+                  className="fancy-input pl-10 w-full bg-music-cardHover/50 border border-white/10 rounded-lg py-2 px-4 text-white"
                   value={searchQuery}
                   onChange={handleInputChange}
                   onKeyDown={handleInputKeyDown}
                   initial={{ y: 10, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.4 }}
-                  whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(29, 185, 84, 0.3)" }}
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               </div>
@@ -294,23 +307,30 @@ const AddSongModal: React.FC<AddSongModalProps> = ({ isOpen, onClose }) => {
                 <label className="block text-sm text-music-textSecondary mb-1">
                   How are you feeling today?
                 </label>
-                <motion.select 
-                  value={selectedMood}
-                  onChange={handleMoodChange}
-                  className="fancy-input w-full bg-transparent"
-                  whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(29, 185, 84, 0.3)" }}
-                >
-                  <option value="">Select a mood (optional)</option>
-                  {moodOptions.map(mood => (
-                    <option key={mood} value={mood}>{mood}</option>
+                <div className="grid grid-cols-3 gap-2">
+                  {moods.map((mood) => (
+                    <motion.button
+                      key={mood.id}
+                      onClick={() => setSelectedMood(mood.id)}
+                      className={`flex items-center justify-center gap-1 p-2 rounded-lg border transition-colors ${
+                        selectedMood === mood.id
+                          ? 'border-music-accent bg-music-accent/20 text-music-accent'
+                          : 'border-white/10 hover:border-white/30'
+                      }`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <span>{mood.emoji}</span>
+                      <span className="text-sm hidden xs:inline">{mood.label}</span>
+                    </motion.button>
                   ))}
-                </motion.select>
+                </div>
               </motion.div>
               
               <motion.button
                 onClick={handleSearch}
                 disabled={isSearching || !searchQuery.trim()}
-                className="premium-button w-full mt-3 flex items-center justify-center"
+                className="premium-button w-full mt-3 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 initial={{ y: 10, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.6 }}
@@ -330,6 +350,18 @@ const AddSongModal: React.FC<AddSongModalProps> = ({ isOpen, onClose }) => {
                   exit={{ opacity: 0, height: 0 }}
                 >
                   You've reached your daily limit. You can add another song in 24 hours.
+                </motion.div>
+              )}
+              
+              {error && (
+                <motion.div 
+                  className="mt-4 text-sm bg-red-500/20 text-red-200 p-3 rounded-lg flex items-center gap-2"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                  <p>{error}</p>
                 </motion.div>
               )}
             </motion.div>
@@ -387,14 +419,18 @@ const AddSongModal: React.FC<AddSongModalProps> = ({ isOpen, onClose }) => {
                         className="flex items-center p-4 hover:bg-white/5 transition-colors"
                         variants={resultItemVariants}
                       >
-                        <img 
-                          src={track.album.images[0]?.url} 
-                          alt={track.album.name}
-                          className="w-12 h-12 rounded object-cover"
-                        />
-                        <div className="ml-3 flex-grow">
-                          <h4 className="font-medium">{track.name}</h4>
-                          <p className="text-sm text-music-textSecondary">
+                        <div className="w-12 h-12 min-w-[48px] relative bg-white/5 rounded overflow-hidden">
+                          <img 
+                            src={track.album.images[0]?.url || '/placeholder.svg'} 
+                            alt={track.album.name}
+                            className="w-full h-full object-cover rounded"
+                            onError={handleImageError}
+                            loading="lazy"
+                          />
+                        </div>
+                        <div className="ml-3 flex-grow min-w-0">
+                          <h4 className="font-medium truncate">{track.name}</h4>
+                          <p className="text-sm text-music-textSecondary truncate">
                             {track.artists.map(artist => artist.name).join(', ')}
                           </p>
                         </div>

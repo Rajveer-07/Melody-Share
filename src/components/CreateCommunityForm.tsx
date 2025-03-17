@@ -11,15 +11,31 @@ interface CreateCommunityFormProps {
 }
 
 const CreateCommunityForm: React.FC<CreateCommunityFormProps> = ({ onComplete, onBack }) => {
-  const { createCommunity, isLoading } = useMusicCommunity();
+  const { createCommunity, isLoading, checkUsernameExists } = useMusicCommunity();
   const [communityName, setCommunityName] = useState('');
   const [username, setUsername] = useState('');
   const [errors, setErrors] = useState({ communityName: '', username: '' });
+  const [isExistingUsername, setIsExistingUsername] = useState(false);
 
   // Validation rules
   const MIN_NAME_LENGTH = 3;
   const MIN_USERNAME_LENGTH = 3;
   const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/; // Alphanumeric and underscores only
+
+  // Debounced username check
+  const checkUsername = useCallback(
+    debounce(async (name: string) => {
+      if (name.length >= MIN_USERNAME_LENGTH && USERNAME_REGEX.test(name)) {
+        try {
+          const exists = await checkUsernameExists(name);
+          setIsExistingUsername(exists);
+        } catch (err) {
+          console.error('Error checking username:', err);
+        }
+      }
+    }, 500),
+    [checkUsernameExists]
+  );
 
   // Debounced validation function
   const validate = useCallback(
@@ -57,6 +73,11 @@ const CreateCommunityForm: React.FC<CreateCommunityFormProps> = ({ onComplete, o
     validate();
   }, [communityName, username, validate]);
 
+  // Check username when it changes
+  useEffect(() => {
+    checkUsername(username);
+  }, [username, checkUsername]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -65,15 +86,22 @@ const CreateCommunityForm: React.FC<CreateCommunityFormProps> = ({ onComplete, o
     try {
       // Pass both community name and username
       await createCommunity(communityName, username);
+      
+      const message = isExistingUsername
+        ? `Your community "${communityName}" has been created and you've joined as a returning user.`
+        : `Your community "${communityName}" has been created and saved to your account.`;
+        
       toast({
         title: "Community created",
-        description: `Your community "${communityName}" has been created.`,
+        description: message,
       });
       onComplete();
     } catch (error) {
+      console.error("Error creating community:", error);
       toast({
         title: "Failed to create community",
         description: "There was an error creating your community. Please try again.",
+        variant: "destructive"
       });
     }
   };
@@ -89,7 +117,7 @@ const CreateCommunityForm: React.FC<CreateCommunityFormProps> = ({ onComplete, o
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="communityName" className="block text-sm font-medium text-music-textSecondary mb-1">
-              Community Code
+              Community Name
             </label>
             <input
               id="communityName"
@@ -127,6 +155,11 @@ const CreateCommunityForm: React.FC<CreateCommunityFormProps> = ({ onComplete, o
             {errors.username && (
               <p id="username-error" className="text-red-400 text-xs mt-1">
                 {errors.username}
+              </p>
+            )}
+            {isExistingUsername && !errors.username && (
+              <p className="text-green-400 text-xs mt-1">
+                Existing username detected - you'll join as a returning user
               </p>
             )}
           </div>
