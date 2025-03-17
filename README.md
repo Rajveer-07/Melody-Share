@@ -35,3 +35,9 @@
 - React
 - shadcn-ui
 - Tailwind CSS
+
+* For backend :-
+
+- Firebase
+
+* This is run as web as well as Android app *
