@@ -202,10 +202,6 @@ const CommunityListing: React.FC<CommunityListingProps> = ({
   return <div className="w-full max-w-xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h2 className="tracking-tight text-gray-200 text-left mx-0 text-xl font-extrabold">Available Communities</h2>
-        {onBack && <Button variant="ghost" size="sm" onClick={onBack} className="h-7 transition-all duration-200 text-sm px-[9px] py-0 font-normal text-slate-50 rounded-md mx-0 bg-green-600 hover:bg-green-500">
-            <ChevronRight className="h-3.5 w-3.5 rotate-180 mr-1" />
-            Back
-          </Button>}
       </div>
 
       <motion.div 
