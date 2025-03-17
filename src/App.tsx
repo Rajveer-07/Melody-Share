@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,11 +12,9 @@ import AnimatedWrapper from "./components/AnimatedWrapper";
 
 const queryClient = new QueryClient();
 
-// AnimatedRoutes component to handle page transitions with enhanced animations
 const AnimatedRoutes = () => {
   const location = useLocation();
 
-  // Scroll to top on route change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
@@ -45,7 +42,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter basename="/Melody-Share">
           <AnimatedRoutes />
         </BrowserRouter>
       </TooltipProvider>
