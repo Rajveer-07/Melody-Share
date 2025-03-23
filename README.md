@@ -41,3 +41,9 @@
 - Firebase
 
 * This is run as web as well as Android app *
+
+## who made this:-
+
+* Hey! So, I’m pretty new to GitHub, which is why I wrote the entire project in VS Code first and then uploaded it to GitHub. Since I’m still figuring things out, the comments are quite few, but the ones that came later were all about improvements. Deploying a React project on GitHub can be tricky, so I had to manually make some changes.
+
+I always prefer writing my code in VS Code first because I like to frequently check if my app is working properly. This way, I can keep making updates and improvements as I go!
